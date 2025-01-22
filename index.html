@@ -2,7 +2,7 @@
 <html>
 
 <head>
-	<title>amogus?</title>
+	<title>Rainworld Easymap</title>
 	<script src="https://unpkg.com/panzoom@9.4.0/dist/panzoom.min.js"
 		integrity="sha256-0dwB5HJ3NFJpgfYQEhC/O15SjlPVMK/7r3ShU8ZnjNU=" crossorigin="anonymous"></script>
 
@@ -57,8 +57,9 @@
 		let selectedMap = null;
 		const pan = document.getElementById("imgContainer");
 		const mapSelections = document.getElementById("mapSelections");
+		const initialTransform = { x: 0, y: 0, scale: 0.2 };
 		let pzInstance = panzoom(pan, {
-			initialZoom: 0.2,
+			initialZoom: initialTransform.scale,
 		});
 
 		const maps = new Map();
@@ -89,6 +90,23 @@
 			const t = pzInstance.getTransform();
 			let hash = `${selectedMap},${t.x.toFixed(0)},${t.y.toFixed(0)},${t.scale.toFixed(3)}`;
 			setHash(hash);
+		}
+
+		function tryRestoreHash() {
+			let currentHash = getHash();
+			if (!currentHash) {
+				return false;
+			}
+
+			const hs = currentHash.split(',');
+			if (hs.length != 4) {
+				return false;
+			}
+
+			const t = { x: Number(hs[1]), y: Number(hs[2]), scale: Number(hs[3]) }
+
+			setbg(hs[0], t);
+			return true;
 		}
 
 		function setbg(tag, transform) {
@@ -139,14 +157,8 @@
 		setupMap('Spearmaster', "img/Spearmaster_icon_%28custom%29.png", 'img/World_Map_%28Spearmaster%29.png', 2180, 0);
 		setupMap('Saint', "img/Saint_icon_%28custom%29.png", 'img/World_Map_%28Saint%29.png', 2180, 803);
 
-		let currentHash = getHash();
-		if (currentHash) {
-			const hs = currentHash.split(',');
-			const t = { x: Number(hs[1]), y: Number(hs[2]), scale: Number(hs[3]) };
-
-			setbg(hs[0], t);
-		} else {
-			setbg("Vanilla");
+		if (!tryRestoreHash()) {
+			setbg("Vanilla", initialTransform);
 		}
 
 		pzInstance.on('transform', function (e) {
