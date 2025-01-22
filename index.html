@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<title>amogus?</title>
+	<style>
+		body {
+			background: darkgray;
+			margin: 0;
+			padding: 0;
+		}
+
+		#original,
+		#result {
+			position: absolute;
+			top: 0;
+			left: 0;
+		}
+
+		#opacity {}
+
+		img {
+			/* IE, only works on <img> tags */
+			-ms-interpolation-mode: nearest-neighbor;
+			/* Firefox */
+			image-rendering: crisp-edges;
+			/* Chromium + Safari */
+			image-rendering: pixelated;
+		}
+
+		.ui {
+			padding: .5em;
+			position: fixed;
+			background-color: #eee;
+			border-radius: 0 0 .3em 0;
+			display: flex;
+			align-items: center;
+		}
+	</style>
+	<script src='https://unpkg.com/panzoom@9.4.0/dist/panzoom.min.js'></script>
+</head>
+
+<body>
+	<div style="position: absolute;z-index: 10;display: flex;">
+		<img src="https://static.wikitide.net/rainworldwiki/e/ed/Survivor_icon_%28custom%29.png"
+			onclick="setbg('https://static.wikitide.net/rainworldwiki/d/d3/World_Map_%28Vanilla%29.png', 2453, -464)" />
+		<img src="https://static.wikitide.net/rainworldwiki/a/a5/Gourmand_icon_%28custom%29.png"
+			onclick="setbg('https://static.wikitide.net/rainworldwiki/7/74/World_Map_%28Downpour%29.png', 0, 0)" />
+		<img src="https://static.wikitide.net/rainworldwiki/a/ad/Artificer_icon_%28custom%29.png"
+			onclick="setbg('https://static.wikitide.net/rainworldwiki/b/b5/World_Map_%28Artificer%29.png', 2180, -1200)" />
+		<img src="https://static.wikitide.net/rainworldwiki/d/dd/Rivulet_icon_%28custom%29.png"
+			onclick="setbg('https://static.wikitide.net/rainworldwiki/f/fb/World_Map_%28Rivulet%29.png', 2180, 0)" />
+		<img src="https://static.wikitide.net/rainworldwiki/f/fc/Spearmaster_icon_%28custom%29.png"
+			onclick="setbg('https://static.wikitide.net/rainworldwiki/0/07/World_Map_%28Spearmaster%29.png', 2180, 0)" />
+		<img src="https://static.wikitide.net/rainworldwiki/3/33/Saint_icon_%28custom%29.png"
+			onclick="setbg('https://static.wikitide.net/rainworldwiki/6/63/World_Map_%28Saint%29.png', 2180, 803)" />
+	</div>
+	<div id="imgContainer">
+		<img id="original" src="https://static.wikitide.net/rainworldwiki/7/74/World_Map_%28Downpour%29.png" />
+	</div>
+
+	<script>
+		const imgOrig = document.querySelector("#original");
+		const imgResult = document.querySelector("#result");
+		const slider = document.querySelector("#opacity");
+
+		let zoomSettings = {
+			initialZoom: 0.2,
+		};
+		let pzInstance = panzoom(document.querySelector("#imgContainer"), zoomSettings);
+
+		function pauseZoom() {
+			pzInstance.pause();
+		}
+
+		function resumeZoom() {
+			pzInstance.resume();
+		}
+
+		function setbg(map, offX, offY) {
+			imgOrig.src = map;
+			imgOrig.style.left = `${offX}px`;
+			imgOrig.style.top = `${offY}px`;
+			pzInstance.setTransformOrigin();
+		}
+	</script>
+</body>
+
+</html>
