@@ -3,6 +3,9 @@
 
 <head>
 	<title>amogus?</title>
+	<script src="https://unpkg.com/panzoom@9.4.0/dist/panzoom.min.js"
+		integrity="sha256-0dwB5HJ3NFJpgfYQEhC/O15SjlPVMK/7r3ShU8ZnjNU=" crossorigin="anonymous"></script>
+
 	<style>
 		body {
 			background: darkgray;
@@ -33,20 +36,27 @@
 			display: flex;
 			align-items: center;
 		}
+
+		#imgContainer {
+			position: fixed;
+			top: 0;
+			left: 0;
+			right: 0;
+			bottom: 0;
+		}
 	</style>
-	<script src="https://unpkg.com/panzoom@9.4.0/dist/panzoom.min.js"
-		integrity="sha256-0dwB5HJ3NFJpgfYQEhC/O15SjlPVMK/7r3ShU8ZnjNU=" crossorigin="anonymous"></script>
 </head>
 
 <body>
-	<div id="map_selections" style="position: absolute;z-index: 10;display: flex;">
+	<div id="mapSelections" style="position: absolute;z-index: 10;display: flex;">
 	</div>
 	<div id="imgContainer">
 	</div>
 
 	<script>
-		const pan = document.querySelector("#imgContainer");
-		const map_selections = document.getElementById("map_selections");
+		let selectedMap = null;
+		const pan = document.getElementById("imgContainer");
+		const mapSelections = document.getElementById("mapSelections");
 		let pzInstance = panzoom(pan, {
 			initialZoom: 0.2,
 		});
@@ -61,7 +71,7 @@
 			const btn = document.createElement("img");
 			btn.src = icon_src;
 			btn.onclick = () => setbg(tag);
-			map_selections.appendChild(btn);
+			mapSelections.appendChild(btn);
 		}
 
 		function getHash() {
@@ -75,8 +85,20 @@
 			window.history.pushState({}, '', url);
 		}
 
-		function setbg(tag) {
+		function updateHash() {
+			const t = pzInstance.getTransform();
+			let hash = `${selectedMap},${t.x.toFixed(0)},${t.y.toFixed(0)},${t.scale.toFixed(3)}`;
+			setHash(hash);
+		}
+
+		function setbg(tag, transform) {
 			const data = maps.get(tag);
+			if (!data) {
+				return;
+			}
+
+			selectedMap = tag;
+
 			const imgs = [...pan.children];
 			imgs.forEach(i => i.style.display = "none");
 			let img = imgs.find(i => i.dataset.map_name === data.tag);
@@ -90,8 +112,25 @@
 				pan.appendChild(img);
 			}
 			img.style.display = "block";
-			setHash(tag);
+
+			if (transform) {
+				const t = pzInstance.getTransform();
+				t.x = transform.x;
+				t.y = transform.y;
+				t.scale = transform.scale;
+			}
+
+			updateHash();
 		}
+
+		function debounce(func, timeout = 300) {
+			let timer;
+			return (...args) => {
+				clearTimeout(timer);
+				timer = setTimeout(() => { func.apply(this, args); }, timeout);
+			};
+		}
+		updateHashDebounced = debounce(updateHash, 500);
 
 		setupMap('Vanilla', "img/Survivor_icon_%28custom%29.png", 'img/World_Map_%28Vanilla%29.png', 2453, -464);
 		setupMap('Downpour', "img/Gourmand_icon_%28custom%29.png", 'img/World_Map_%28Downpour%29.png', 0, 0);
@@ -102,8 +141,17 @@
 
 		let currentHash = getHash();
 		if (currentHash) {
-			setbg(currentHash);
+			const hs = currentHash.split(',');
+			const t = { x: Number(hs[1]), y: Number(hs[2]), scale: Number(hs[3]) };
+
+			setbg(hs[0], t);
+		} else {
+			setbg("Vanilla");
 		}
+
+		pzInstance.on('transform', function (e) {
+			updateHashDebounced();
+		});
 	</script>
 </body>
 
