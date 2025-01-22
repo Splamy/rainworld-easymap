@@ -10,14 +10,11 @@
 			padding: 0;
 		}
 
-		#original,
-		#result {
+		.map {
 			position: absolute;
 			top: 0;
 			left: 0;
 		}
-
-		#opacity {}
 
 		img {
 			/* IE, only works on <img> tags */
@@ -37,51 +34,75 @@
 			align-items: center;
 		}
 	</style>
-	<script src='https://unpkg.com/panzoom@9.4.0/dist/panzoom.min.js'></script>
+	<script src="https://unpkg.com/panzoom@9.4.0/dist/panzoom.min.js"
+		integrity="sha256-0dwB5HJ3NFJpgfYQEhC/O15SjlPVMK/7r3ShU8ZnjNU=" crossorigin="anonymous"></script>
 </head>
 
 <body>
-	<div style="position: absolute;z-index: 10;display: flex;">
-		<img src="https://static.wikitide.net/rainworldwiki/e/ed/Survivor_icon_%28custom%29.png"
-			onclick="setbg('https://static.wikitide.net/rainworldwiki/d/d3/World_Map_%28Vanilla%29.png', 2453, -464)" />
-		<img src="https://static.wikitide.net/rainworldwiki/a/a5/Gourmand_icon_%28custom%29.png"
-			onclick="setbg('https://static.wikitide.net/rainworldwiki/7/74/World_Map_%28Downpour%29.png', 0, 0)" />
-		<img src="https://static.wikitide.net/rainworldwiki/a/ad/Artificer_icon_%28custom%29.png"
-			onclick="setbg('https://static.wikitide.net/rainworldwiki/b/b5/World_Map_%28Artificer%29.png', 2180, -1200)" />
-		<img src="https://static.wikitide.net/rainworldwiki/d/dd/Rivulet_icon_%28custom%29.png"
-			onclick="setbg('https://static.wikitide.net/rainworldwiki/f/fb/World_Map_%28Rivulet%29.png', 2180, 0)" />
-		<img src="https://static.wikitide.net/rainworldwiki/f/fc/Spearmaster_icon_%28custom%29.png"
-			onclick="setbg('https://static.wikitide.net/rainworldwiki/0/07/World_Map_%28Spearmaster%29.png', 2180, 0)" />
-		<img src="https://static.wikitide.net/rainworldwiki/3/33/Saint_icon_%28custom%29.png"
-			onclick="setbg('https://static.wikitide.net/rainworldwiki/6/63/World_Map_%28Saint%29.png', 2180, 803)" />
+	<div id="map_selections" style="position: absolute;z-index: 10;display: flex;">
 	</div>
 	<div id="imgContainer">
-		<img id="original" src="https://static.wikitide.net/rainworldwiki/7/74/World_Map_%28Downpour%29.png" />
 	</div>
 
 	<script>
-		const imgOrig = document.querySelector("#original");
-		const imgResult = document.querySelector("#result");
-		const slider = document.querySelector("#opacity");
-
-		let zoomSettings = {
+		const pan = document.querySelector("#imgContainer");
+		const map_selections = document.getElementById("map_selections");
+		let pzInstance = panzoom(pan, {
 			initialZoom: 0.2,
-		};
-		let pzInstance = panzoom(document.querySelector("#imgContainer"), zoomSettings);
+		});
 
-		function pauseZoom() {
-			pzInstance.pause();
+		const maps = new Map();
+		function createMap(tag, map_src, offX, offY) {
+			return { tag, map_src, offX, offY };
+		}
+		function setupMap(tag, icon_src, map_src, offX, offY) {
+			const map = createMap(tag, map_src, offX, offY);
+			maps.set(tag, map);
+			const btn = document.createElement("img");
+			btn.src = icon_src;
+			btn.onclick = () => setbg(tag);
+			map_selections.appendChild(btn);
 		}
 
-		function resumeZoom() {
-			pzInstance.resume();
+		function getHash() {
+			const url = new URL(window.location);
+			return url.hash.substring(1);
 		}
 
-		function setbg(map, offX, offY) {
-			imgOrig.src = map;
-			imgOrig.style.left = `${offX}px`;
-			imgOrig.style.top = `${offY}px`;
-			pzInstance.setTransformOrigin();
+		function setHash(hash) {
+			const url = new URL(window.location);
+			url.hash = `#${hash}`;
+			window.history.pushState({}, '', url);
+		}
+
+		function setbg(tag) {
+			const data = maps.get(tag);
+			const imgs = [...pan.children];
+			imgs.forEach(i => i.style.display = "none");
+			let img = imgs.find(i => i.dataset.map_name === data.tag);
+			if (!img) {
+				img = document.createElement("img");
+				img.classList.add("map");
+				img.src = data.map_src;
+				img.style.left = `${data.offX}px`;
+				img.style.top = `${data.offY}px`;
+				img.dataset.map_name = data.tag;
+				pan.appendChild(img);
+			}
+			img.style.display = "block";
+			setHash(tag);
+		}
+
+		setupMap('Vanilla', "img/Survivor_icon_%28custom%29.png", 'img/World_Map_%28Vanilla%29.png', 2453, -464);
+		setupMap('Downpour', "img/Gourmand_icon_%28custom%29.png", 'img/World_Map_%28Downpour%29.png', 0, 0);
+		setupMap('Artificer', "img/Artificer_icon_%28custom%29.png", 'img/World_Map_%28Artificer%29.png', 2180, -1200);
+		setupMap('Rivulet', "img/Rivulet_icon_%28custom%29.png", 'img/World_Map_%28Rivulet%29.png', 2180, 0);
+		setupMap('Spearmaster', "img/Spearmaster_icon_%28custom%29.png", 'img/World_Map_%28Spearmaster%29.png', 2180, 0);
+		setupMap('Saint', "img/Saint_icon_%28custom%29.png", 'img/World_Map_%28Saint%29.png', 2180, 803);
+
+		let currentHash = getHash();
+		if (currentHash) {
+			setbg(currentHash);
 		}
 	</script>
 </body>
