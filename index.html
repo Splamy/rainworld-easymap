@@ -3,6 +3,7 @@
 
 <head>
 	<title>Rainworld Easymap</title>
+	<link rel="stylesheet" href="keys.css" type="text/css" />
 	<script src="https://unpkg.com/panzoom@9.4.0/dist/panzoom.min.js"
 		integrity="sha256-0dwB5HJ3NFJpgfYQEhC/O15SjlPVMK/7r3ShU8ZnjNU=" crossorigin="anonymous"></script>
 
@@ -33,15 +34,6 @@
 			image-rendering: pixelated;
 		}
 
-		.ui {
-			padding: .5em;
-			position: fixed;
-			background-color: #eee;
-			border-radius: 0 0 .3em 0;
-			display: flex;
-			align-items: center;
-		}
-
 		.overlay {
 			/* neded to be in same drawing group as maps */
 			position: fixed;
@@ -62,12 +54,38 @@
 		.dbgborder {
 			border: black 6px solid;
 		}
+
+		#uiCats {
+			position: absolute;
+			display: flex;
+			cursor: pointer;
+			z-index: 10;
+			left:0;
+			top:0;
+		}
+
+		#uiHelp {
+			position: absolute;
+			display: flex;
+			flex-direction: column;
+			gap: 0.2em;
+			z-index: 10;
+			padding: 4px;
+			text-align: right;
+			right: 0;
+			top: 0;
+		}
 	</style>
 </head>
 
 <body>
-	<div id="mapSelections" style="position: absolute; z-index: 10; display: flex;">
+	<div id="uiCats">
 	</div>
+	<div id="uiHelp">
+		<span class="light-keys"><kbd>Shift</kbd>+<kbd>Mouse</kbd> to draw</span><br/>
+		<span class="light-keys"><kbd>R</kbd> to erase</span><br/>
+	</div>
+
 	<div id="imgContainer" class="">
 		<canvas class="overlay" height="3500" width="6000" />
 	</div>
@@ -75,7 +93,7 @@
 	<script>
 		let selectedMap = null;
 		const pan = document.getElementById("imgContainer");
-		const mapSelections = document.getElementById("mapSelections");
+		const mapSelections = document.getElementById("uiCats");
 		const initialTransform = { x: 0, y: 0, scale: 0.2 };
 		let pzInstance = panzoom(pan, {
 			initialZoom: initialTransform.scale,
