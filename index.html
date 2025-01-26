@@ -8,18 +8,23 @@
 
 	<style>
 		body {
-			background: darkgray;
+			background: dimgray;
 			margin: 0;
 			padding: 0;
 		}
 
+		html,
+		body,
 		.map {
 			position: absolute;
 			top: 0;
 			left: 0;
+			right: 0;
+			bottom: 0;
 		}
 
-		img {
+		.map,
+		canvas {
 			/* IE, only works on <img> tags */
 			-ms-interpolation-mode: nearest-neighbor;
 			/* Firefox */
@@ -37,20 +42,34 @@
 			align-items: center;
 		}
 
-		#imgContainer {
+		.overlay {
+			/* neded to be in same drawing group as maps */
 			position: fixed;
-			top: 0;
-			left: 0;
-			right: 0;
-			bottom: 0;
+			z-index: 2;
+
+			width: 100%;
+			height: 100%;
+		}
+
+		#imgContainer {
+			background: darkgray;
+			position: fixed;
+
+			width: 12000px;
+			height: 7000px;
+		}
+
+		.dbgborder {
+			border: black 6px solid;
 		}
 	</style>
 </head>
 
 <body>
-	<div id="mapSelections" style="position: absolute;z-index: 10;display: flex;">
+	<div id="mapSelections" style="position: absolute; z-index: 10; display: flex;">
 	</div>
-	<div id="imgContainer">
+	<div id="imgContainer" class="">
+		<canvas class="overlay" height="3500" width="6000" />
 	</div>
 
 	<script>
@@ -60,6 +79,11 @@
 		const initialTransform = { x: 0, y: 0, scale: 0.2 };
 		let pzInstance = panzoom(pan, {
 			initialZoom: initialTransform.scale,
+			bounds: true,
+			boundsPadding: 0.4,
+			beforeMouseDown: function (e) {
+				return e.shiftKey;
+			}
 		});
 
 		const maps = new Map();
@@ -117,7 +141,7 @@
 
 			selectedMap = tag;
 
-			const imgs = [...pan.children];
+			const imgs = [...pan.querySelectorAll(".map")];
 			imgs.forEach(i => i.style.display = "none");
 			let img = imgs.find(i => i.dataset.map_name === data.tag);
 			if (!img) {
@@ -150,12 +174,12 @@
 		}
 		updateHashDebounced = debounce(updateHash, 500);
 
-		setupMap('Vanilla', "img/Survivor_icon_%28custom%29.png", 'img/World_Map_%28Vanilla%29.png', 2453, -464);
-		setupMap('Downpour', "img/Gourmand_icon_%28custom%29.png", 'img/World_Map_%28Downpour%29.png', 0, 0);
-		setupMap('Artificer', "img/Artificer_icon_%28custom%29.png", 'img/World_Map_%28Artificer%29.png', 2180, -1200);
-		setupMap('Rivulet', "img/Rivulet_icon_%28custom%29.png", 'img/World_Map_%28Rivulet%29.png', 2180, 0);
-		setupMap('Spearmaster', "img/Spearmaster_icon_%28custom%29.png", 'img/World_Map_%28Spearmaster%29.png', 2180, 0);
-		setupMap('Saint', "img/Saint_icon_%28custom%29.png", 'img/World_Map_%28Saint%29.png', 2180, 803);
+		setupMap('Vanilla', "img/Survivor_icon_%28custom%29.png", 'img/World_Map_%28Vanilla%29.png', 2453, 736);
+		setupMap('Downpour', "img/Gourmand_icon_%28custom%29.png", 'img/World_Map_%28Downpour%29.png', 0, 1200);
+		setupMap('Artificer', "img/Artificer_icon_%28custom%29.png", 'img/World_Map_%28Artificer%29.png', 2180, 0);
+		setupMap('Rivulet', "img/Rivulet_icon_%28custom%29.png", 'img/World_Map_%28Rivulet%29.png', 2180, 1200);
+		setupMap('Spearmaster', "img/Spearmaster_icon_%28custom%29.png", 'img/World_Map_%28Spearmaster%29.png', 2180, 1200);
+		setupMap('Saint', "img/Saint_icon_%28custom%29.png", 'img/World_Map_%28Saint%29.png', 2180, 2003);
 
 		if (!tryRestoreHash()) {
 			setbg("Vanilla", initialTransform);
@@ -164,6 +188,53 @@
 		pzInstance.on('transform', function (e) {
 			updateHashDebounced();
 		});
+
+		// Image stuff
+
+		const canv = document.querySelector(".overlay");
+		const canvW = 12000;
+		const canvH = 7000;
+		canv.style.width = `${canvW}px`;
+		canv.style.height = `${canvH}px`;
+
+		const ctx = canv.getContext("2d");
+		ctx.imageSmoothingEnabled = false;
+		const ratioX = canvW / canv.width, ratioY = canvH / canv.height;
+		let isDrawing;
+
+		canv.onmousedown = (e) => {
+			if (!e.shiftKey) {
+				return;
+			}
+
+			isDrawing = true;
+			ctx.beginPath();
+			ctx.lineWidth = 1;
+			ctx.strokeStyle = "red";
+			ctx.lineJoin = "round";
+			ctx.lineCap = "round";
+			ctx.moveTo(e.offsetX / ratioX, e.offsetY / ratioY);
+		};
+
+		canv.oncontextmenu = (e) => { return false; }
+
+		canv.onmousemove = (e) => {
+			if (isDrawing) {
+				ctx.lineTo(e.offsetX / ratioX, e.offsetY / ratioY);
+				ctx.stroke();
+			}
+		};
+
+		canv.onmouseup = function () {
+			isDrawing = false;
+			ctx.closePath();
+		};
+
+		document.onkeydown = (e) => {
+			if (e.code == "KeyR") {
+				ctx.clearRect(0, 0, canv.width, canv.height);
+			}
+		}
 	</script>
 </body>
 
