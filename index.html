@@ -2,6 +2,7 @@
 <html>
 
 <head>
+	<meta name="viewport" content="width=device-width, initial-scale=1.0,user-scalable=no">
 	<title>Rainworld Easymap</title>
 	<link rel="stylesheet" href="keys.css" type="text/css" />
 	<script src="https://unpkg.com/panzoom@9.4.0/dist/panzoom.min.js"
@@ -60,8 +61,8 @@
 			display: flex;
 			cursor: pointer;
 			z-index: 10;
-			left:0;
-			top:0;
+			left: 0;
+			top: 0;
 		}
 
 		#uiHelp {
@@ -75,6 +76,14 @@
 			right: 0;
 			top: 0;
 		}
+
+		/* Hide help on touch devices */
+		@media (-moz-touch-enabled: 1),
+		(pointer:coarse) {
+			#uiHelp {
+				display: none;
+			}
+		}
 	</style>
 </head>
 
@@ -82,8 +91,8 @@
 	<div id="uiCats">
 	</div>
 	<div id="uiHelp">
-		<span class="light-keys"><kbd>Shift</kbd>+<kbd>Mouse</kbd> to draw</span><br/>
-		<span class="light-keys"><kbd>R</kbd> to erase</span><br/>
+		<span class="light-keys"><kbd>Shift</kbd>+<kbd>Mouse</kbd> to draw</span><br />
+		<span class="light-keys"><kbd>R</kbd> to erase</span><br />
 	</div>
 
 	<div id="imgContainer" class="">
@@ -114,6 +123,7 @@
 			const btn = document.createElement("img");
 			btn.src = icon_src;
 			btn.onclick = () => setbg(tag);
+			btn.ontouchstart = () => setbg(tag);
 			mapSelections.appendChild(btn);
 		}
 
