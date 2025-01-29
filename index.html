@@ -106,8 +106,6 @@
 		const initialTransform = { x: 0, y: 0, scale: 0.2 };
 		let pzInstance = panzoom(pan, {
 			initialZoom: initialTransform.scale,
-			bounds: true,
-			boundsPadding: 0.4,
 			beforeMouseDown: function (e) {
 				return e.shiftKey;
 			}
@@ -213,15 +211,31 @@
 			setbg("Vanilla", initialTransform);
 		}
 
+		const canvW = 12000;
+		const canvH = 7000;
+
 		pzInstance.on('transform', function (e) {
 			updateHashDebounced();
+
+			const off = 100;
+			const t = e.getTransform();
+			
+			if (t.x > window.innerWidth - off) {
+				pzInstance.moveTo(window.innerWidth - off, t.y);
+			} else if (t.x < off - (canvW) * t.scale) {
+				pzInstance.moveTo(off - (canvW) * t.scale, t.y);
+			}
+			if (t.y > window.innerHeight - off) {
+				pzInstance.moveTo(t.x, window.innerHeight - off);
+			} else if (t.y < off - (canvH) * t.scale) {
+				pzInstance.moveTo(t.x, off - (canvH) * t.scale);
+			}
 		});
 
 		// Image stuff
 
 		const canv = document.querySelector(".overlay");
-		const canvW = 12000;
-		const canvH = 7000;
+
 		canv.style.width = `${canvW}px`;
 		canv.style.height = `${canvH}px`;
 
