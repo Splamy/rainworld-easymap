@@ -169,17 +169,27 @@
 
 			const imgs = [...pan.querySelectorAll(".map")];
 			imgs.forEach(i => i.style.display = "none");
-			let img = imgs.find(i => i.dataset.map_name === data.tag);
-			if (!img) {
-				img = document.createElement("img");
-				img.classList.add("map");
-				img.src = data.map_src;
-				img.style.left = `${data.offX}px`;
-				img.style.top = `${data.offY}px`;
-				img.dataset.map_name = data.tag;
-				pan.appendChild(img);
+			let pic = imgs.find(i => i.dataset.map_name === data.tag);
+			if (!pic) {
+				pic = document.createElement("picture");
+				pic.classList.add("map");
+				for (let src of data.map_src) {
+					let source = document.createElement("source");
+					source.srcset = src;
+					let ext = src.substring(src.lastIndexOf('.') + 1);
+					source.type = `image/${ext}`;
+					pic.appendChild(source);
+				}
+				let source = document.createElement("img");
+				source.src = data.map_src[0];
+				pic.appendChild(source);
+
+				pic.style.left = `${data.offX}px`;
+				pic.style.top = `${data.offY}px`;
+				pic.dataset.map_name = data.tag;
+				pan.appendChild(pic);
 			}
-			img.style.display = "block";
+			pic.style.display = "block";
 
 			if (transform) {
 				const t = pzInstance.getTransform();
@@ -200,12 +210,15 @@
 		}
 		updateHashDebounced = debounce(updateHash, 500);
 
-		setupMap('Vanilla', "img/Survivor_icon_%28custom%29.png", 'img/World_Map_%28Vanilla%29.png', 2453, 736);
-		setupMap('Downpour', "img/Gourmand_icon_%28custom%29.png", 'img/World_Map_%28Downpour%29.png', 0, 1200);
-		setupMap('Artificer', "img/Artificer_icon_%28custom%29.png", 'img/World_Map_%28Artificer%29.png', 2180, 0);
-		setupMap('Rivulet', "img/Rivulet_icon_%28custom%29.png", 'img/World_Map_%28Rivulet%29.png', 2180, 1200);
-		setupMap('Spearmaster', "img/Spearmaster_icon_%28custom%29.png", 'img/World_Map_%28Spearmaster%29.png', 2180, 1200);
-		setupMap('Saint', "img/Saint_icon_%28custom%29.png", 'img/World_Map_%28Saint%29.png', 2180, 2003);
+		let withExt = (base, exts) => exts.map(e => `${base}.${e}`);
+		let withDefExt = (base) => withExt(base, ['webp', 'png']);
+
+		setupMap('Vanilla', "img/Survivor_icon_%28custom%29.png", withDefExt('img/World_Map_%28Vanilla%29'), 2453, 736);
+		setupMap('Downpour', "img/Gourmand_icon_%28custom%29.png", withDefExt('img/World_Map_%28Downpour%29'), 0, 1200);
+		setupMap('Artificer', "img/Artificer_icon_%28custom%29.png", withDefExt('img/World_Map_%28Artificer%29'), 2180, 0);
+		setupMap('Rivulet', "img/Rivulet_icon_%28custom%29.png", withDefExt('img/World_Map_%28Rivulet%29'), 2180, 1200);
+		setupMap('Spearmaster', "img/Spearmaster_icon_%28custom%29.png", withDefExt('img/World_Map_%28Spearmaster%29'), 2180, 1200);
+		setupMap('Saint', "img/Saint_icon_%28custom%29.png", withDefExt('img/World_Map_%28Saint%29'), 2180, 2003);
 
 		if (!tryRestoreHash()) {
 			setbg("Vanilla", initialTransform);
@@ -219,7 +232,7 @@
 
 			const off = 100;
 			const t = e.getTransform();
-			
+
 			if (t.x > window.innerWidth - off) {
 				pzInstance.moveTo(window.innerWidth - off, t.y);
 			} else if (t.x < off - (canvW) * t.scale) {
