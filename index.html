@@ -17,12 +17,17 @@
 
 		html,
 		body,
-		.map {
+		.map,
+		.fillc {
 			position: absolute;
 			top: 0;
 			left: 0;
 			right: 0;
 			bottom: 0;
+		}
+
+		.part {
+			position: absolute;
 		}
 
 		.map,
@@ -47,9 +52,6 @@
 		#imgContainer {
 			background: darkgray;
 			position: fixed;
-
-			width: 12000px;
-			height: 7000px;
 		}
 
 		.dbgborder {
@@ -100,8 +102,39 @@
 	</div>
 
 	<script>
+		//@ts-check
+
+		class Vec {
+			/** @param {number} x, @param {number} y */
+			constructor(x, y) {
+				this.x = x;
+				this.y = y;
+			}
+		}
+
+		class Part {
+			/** @param {string[]} srcs, @param {Vec} off */
+			constructor(srcs, off) {
+				this.srcs = srcs;
+				this.off = off;
+			}
+		}
+
+		class MapData {
+			/** @param {string} tag, @param icon_src, @param {Vec} mapSize, @param {Vec} off, @param {Part[]} map_src */
+			constructor(tag, icon_src, mapSize, off, map_src) {
+				this.tag = tag;
+				this.icon_src = icon_src;
+				this.mapSize = mapSize;
+				this.off = off;
+				this.map_src = map_src;
+			}
+		}
+
 		let selectedMap = null;
+		/** @type {HTMLDivElement} */
 		const pan = document.getElementById("imgContainer");
+		/** @type {HTMLDivElement} */
 		const mapSelections = document.getElementById("uiCats");
 		const initialTransform = { x: 0, y: 0, scale: 0.2 };
 		let pzInstance = panzoom(pan, {
@@ -111,29 +144,31 @@
 			}
 		});
 
+		/** @type {Map<string, MapData>} */
 		const maps = new Map();
-		function createMap(tag, map_src, offX, offY) {
-			return { tag, map_src, offX, offY };
-		}
-		function setupMap(tag, icon_src, map_src, offX, offY) {
-			const map = createMap(tag, map_src, offX, offY);
-			maps.set(tag, map);
+
+		/**
+		* @param {MapData} map
+		*/
+		function setupMap(map) {
+			//const map = new MapData(tag, mapSize, off, map_src);
+			maps.set(map.tag, map);
 			const btn = document.createElement("img");
-			btn.src = icon_src;
-			btn.onclick = () => setbg(tag);
-			btn.ontouchstart = () => setbg(tag);
+			btn.src = map.icon_src;
+			btn.onclick = () => setbg(map.tag);
+			btn.ontouchstart = () => setbg(map.tag);
 			mapSelections.appendChild(btn);
 		}
 
 		function getHash() {
-			const url = new URL(window.location);
-			return url.hash.substring(1);
+			return window.location.hash.substring(1);
 		}
 
+		/** @param {string} hash */
 		function setHash(hash) {
-			const url = new URL(window.location);
-			url.hash = `#${hash}`;
-			window.history.pushState({}, '', url);
+			const url = window.location;
+			url.hash = hash;
+			window.history.pushState({}, '', url.toString());
 		}
 
 		function updateHash() {
@@ -159,6 +194,7 @@
 			return true;
 		}
 
+		/** @param {string} tag, @param {{x: number, y: number, scale: number}} [transform] */
 		function setbg(tag, transform) {
 			const data = maps.get(tag);
 			if (!data) {
@@ -167,29 +203,45 @@
 
 			selectedMap = tag;
 
+			/** @type {HTMLDivElement[]} */
 			const imgs = [...pan.querySelectorAll(".map")];
 			imgs.forEach(i => i.style.display = "none");
-			let pic = imgs.find(i => i.dataset.map_name === data.tag);
+			let pic = imgs.find(i => i.dataset.mapName === data.tag);
+			// Create container for slugcat map if it does not exist
 			if (!pic) {
-				pic = document.createElement("picture");
+				pic = document.createElement("div");
 				pic.classList.add("map");
-				for (let src of data.map_src) {
-					let source = document.createElement("source");
-					source.srcset = src;
-					let ext = src.substring(src.lastIndexOf('.') + 1);
-					source.type = `image/${ext}`;
-					pic.appendChild(source);
-				}
-				let source = document.createElement("img");
-				source.src = data.map_src[0];
-				pic.appendChild(source);
+				// Create a group for all map parts, most maps are precombined
+				// with only one map though.
+				for (let part of data.map_src) {
+					let picture = document.createElement("picture");
+					picture.classList.add("part");
+					pic.appendChild(picture);
+					let offX = data.off.x + part.off.x;
+					let offY = data.off.y + part.off.y;
+					picture.style.left = `${offX}px`;
+					picture.style.top = `${offY}px`;
 
-				pic.style.left = `${data.offX}px`;
-				pic.style.top = `${data.offY}px`;
-				pic.dataset.map_name = data.tag;
+					// Append all image variations like webp, png, etc.
+					for (let src of part.srcs) {
+						let source = document.createElement("source");
+						source.srcset = src;
+						let ext = src.substring(src.lastIndexOf('.') + 1);
+						source.type = `image/${ext}`;
+						picture.appendChild(source);
+					}
+
+					let source = document.createElement("img");
+					source.src = part.srcs[0];
+					picture.appendChild(source);
+				}
+
+				pic.dataset.mapName = data.tag;
 				pan.appendChild(pic);
 			}
 			pic.style.display = "block";
+			pan.style.width = `${data.mapSize.x}px`;
+			pan.style.height = `${data.mapSize.y}px`;
 
 			if (transform) {
 				const t = pzInstance.getTransform();
@@ -208,17 +260,54 @@
 				timer = setTimeout(() => { func.apply(this, args); }, timeout);
 			};
 		}
-		updateHashDebounced = debounce(updateHash, 500);
+		let updateHashDebounced = debounce(updateHash, 500);
 
+		/** @param {string} base, @param {string[]} exts, @returns {string[]} */
 		let withExt = (base, exts) => exts.map(e => `${base}.${e}`);
+		/** @param {string} base */
 		let withDefExt = (base) => withExt(base, ['webp', 'png']);
+		let withOneDefExt = (base) => [new Part(withDefExt(base), new Vec(0, 0))];
+		const defaultSize = new Vec(12000, 7000);
 
-		setupMap('Vanilla', "img/Survivor_icon_%28custom%29.png", withDefExt('img/World_Map_%28Vanilla%29'), 2453, 736);
-		setupMap('Downpour', "img/Gourmand_icon_%28custom%29.png", withDefExt('img/World_Map_%28Downpour%29'), 0, 1200);
-		setupMap('Artificer', "img/Artificer_icon_%28custom%29.png", withDefExt('img/World_Map_%28Artificer%29'), 2180, 0);
-		setupMap('Rivulet', "img/Rivulet_icon_%28custom%29.png", withDefExt('img/World_Map_%28Rivulet%29'), 2180, 1200);
-		setupMap('Spearmaster', "img/Spearmaster_icon_%28custom%29.png", withDefExt('img/World_Map_%28Spearmaster%29'), 2180, 1200);
-		setupMap('Saint', "img/Saint_icon_%28custom%29.png", withDefExt('img/World_Map_%28Saint%29'), 2180, 2003);
+		setupMap(new MapData('Vanilla', "img/Survivor_icon_%28custom%29.png", defaultSize, new Vec(2453, 736), withOneDefExt('img/World_Map_%28Vanilla%29')));
+		setupMap(new MapData('Downpour', "img/Gourmand_icon_%28custom%29.png", defaultSize, new Vec(0, 1200), withOneDefExt('img/World_Map_%28Downpour%29')));
+		setupMap(new MapData('Artificer', "img/Artificer_icon_%28custom%29.png", defaultSize, new Vec(2180, 0), withOneDefExt('img/World_Map_%28Artificer%29')));
+		setupMap(new MapData('Rivulet', "img/Rivulet_icon_%28custom%29.png", defaultSize, new Vec(2180, 1200), withOneDefExt('img/World_Map_%28Rivulet%29')));
+		setupMap(new MapData('Spearmaster', "img/Spearmaster_icon_%28custom%29.png", defaultSize, new Vec(2180, 1200), withOneDefExt('img/World_Map_%28Spearmaster%29')));
+		setupMap(new MapData('Saint', "img/Saint_icon_%28custom%29.png", defaultSize, new Vec(2180, 2003), withOneDefExt('img/World_Map_%28Saint%29')));
+		setupMap(new MapData('Watcher', "img/Watcher_icon_%28custom%29.png", defaultSize, new Vec(0, 0), [
+			new Part(withDefExt('img/Watcher/Sunbaked_Alley_Map'), new Vec(0, 0)),
+			new Part(withDefExt('img/Watcher/Torrential_Railways_Map'), new Vec(0, 1000)),
+			new Part(withDefExt('img/Watcher/Aether_Ridge_Map'), new Vec(0, 2000)),
+			new Part(withDefExt('img/Watcher/Badlands_Map'), new Vec(0, 3000)),
+			new Part(withDefExt('img/Watcher/Cold_Storage_Map'), new Vec(0, 4000)),
+			new Part(withDefExt('img/Watcher/Desolate_Tract_Map'), new Vec(0, 5000)),
+			new Part(withDefExt('img/Watcher/Fetid_Glen_Map'), new Vec(0, 6000)),
+			new Part(withDefExt('img/Watcher/Fractured_Gateways_Map'), new Vec(0, 7000)),
+			new Part(withDefExt('img/Watcher/Heat_Ducts_Map'), new Vec(0, 8000)),
+			new Part(withDefExt('img/Watcher/Migration_Path_Map'), new Vec(0, 9000)),
+			new Part(withDefExt('img/Watcher/Pillar_Grove_Map'), new Vec(0, 10000)),
+			new Part(withDefExt('img/Watcher/Rusted_Wrecks_Map'), new Vec(2000, 0)),
+			new Part(withDefExt('img/Watcher/Salination_Map'), new Vec(2000, 1000)),
+			new Part(withDefExt('img/Watcher/Shrouded_Stacks_Map'), new Vec(2000, 2000)),
+			new Part(withDefExt('img/Watcher/Signal_Spires_Map'), new Vec(2000, 3000)),
+			new Part(withDefExt('img/Watcher/Stormy_Coast_Map'), new Vec(2000, 4000)),
+			new Part(withDefExt('img/Watcher/The_Surface_Map'), new Vec(2000, 5000)),
+			new Part(withDefExt('img/Watcher/Torrid_Desert_Map'), new Vec(2000, 6000)),
+			new Part(withDefExt('img/Watcher/Turbulent_Pump_Map'), new Vec(2000, 7000)),
+			new Part(withDefExt('img/Watcher/Verdant_Waterways_Map'), new Vec(2000, 8000)),
+			new Part(withDefExt('img/Watcher/Crumbling_Fringes_Map'), new Vec(2000, 9000)),
+			new Part(withDefExt('img/Watcher/Corrupted_Factories_Map'), new Vec(2000, 10000)),
+			new Part(withDefExt('img/Watcher/Decaying_Tunnels_Map'), new Vec(4000, 0)),
+			new Part(withDefExt('img/Watcher/Infested_Wastes_Map'), new Vec(4000, 1000)),
+			new Part(withDefExt('img/Watcher/Shattered_Terrace_Map'), new Vec(4000, 2000)),
+			new Part(withDefExt('img/Watcher/Daemon_Map'), new Vec(4000, 3000)),
+			new Part(withDefExt('img/Watcher/Unfortunate_Evolution_Map'), new Vec(4000, 4000)),
+			new Part(withDefExt('img/Watcher/Outer_Rim_Map'), new Vec(4000, 5000)),
+			new Part(withDefExt('img/Watcher/Ancient_Urban_Map'), new Vec(4000, 6000)),
+			new Part(withDefExt('img/Watcher/Coral_Caves_Map'), new Vec(4000, 7000)),
+			new Part(withDefExt('img/Watcher/Industrial_Complex_Map_Watcher_(MSC)'), new Vec(4000, 8000))
+		]));
 
 		if (!tryRestoreHash()) {
 			setbg("Vanilla", initialTransform);
@@ -247,11 +336,13 @@
 
 		// Image stuff
 
+		/** @type {HTMLCanvasElement} */
 		const canv = document.querySelector(".overlay");
 
-		canv.style.width = `${canvW}px`;
-		canv.style.height = `${canvH}px`;
+		// canv.style.width = `${canvW}px`;
+		// canv.style.height = `${canvH}px`;
 
+		/** @type {CanvasRenderingContext2D} */
 		const ctx = canv.getContext("2d");
 		ctx.imageSmoothingEnabled = false;
 		const ratioX = canvW / canv.width, ratioY = canvH / canv.height;
