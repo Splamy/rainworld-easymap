@@ -166,9 +166,9 @@
 
 		/** @param {string} hash */
 		function setHash(hash) {
-			const url = window.location;
-			url.hash = hash;
-			window.history.pushState({}, '', url.toString());
+			const url = new URL(window.location.toString());
+			url.hash = `#${hash}`;
+			window.history.pushState({}, '', url);
 		}
 
 		function updateHash() {
