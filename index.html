@@ -163,11 +163,12 @@
 		}
 
 		class Part {
-			/** @param {string[]} srcs, @param {Vec} off, @param {Con[]} [cons] */
-			constructor(key, srcs, off, cons) {
+			/** @param {string[]} srcs, @param {Vec} off, @param {Vec} size, @param {Con[]} [cons] */
+			constructor(key, srcs, off, size, cons) {
 				this.key = key;
 				this.srcs = srcs;
 				this.off = off;
+				this.size = size;
 				this.cons = cons || [];
 			}
 		}
@@ -200,7 +201,7 @@
 		let pzInstance = panzoom(pan, {
 			initialZoom: initialTransform.scale,
 			beforeMouseDown: function (e) {
-				return e.shiftKey;
+				return e.shiftKey || e.ctrlKey;
 			}
 		});
 
@@ -257,7 +258,7 @@
 		let canvSize = defaultSize;
 
 		/** @param {string} tag, @param {{x: number, y: number, scale: number}} [transform] */
-		function setbg(tag, transform) {
+		function setbg(tag, transform, forceRecreate = false) {
 			const data = maps.get(tag);
 			if (!data) {
 				return;
@@ -269,6 +270,10 @@
 			const imgs = [...pan.querySelectorAll(".map")];
 			imgs.forEach(i => i.style.display = "none");
 			let pic = imgs.find(i => i.dataset.mapName === data.tag);
+			if (forceRecreate && pic) {
+				pic.remove();
+				pic = undefined;
+			}
 			// Create container for slugcat map if it does not exist
 			if (!pic) {
 				pic = document.createElement("div");
@@ -324,6 +329,23 @@
 					}
 				}
 
+				// print dot file for graphviz
+				let dot = `graph G {\nnode [shape=circle]\n`;
+				for (let part of data.parts) {
+					if (part.cons.length == 0) {
+						continue;
+					}
+
+					dot += `  "${part.key}" [label="${part.key}"]\n`;
+					for (let con of part.cons) {
+						if (part.key < con.to) {
+							dot += `  "${part.key}" -- "${con.to}"\n`;
+						}
+					}
+				}
+				dot += `}`;
+				console.log(dot);
+
 
 				pic.dataset.mapName = data.tag;
 				pan.appendChild(pic);
@@ -364,8 +386,8 @@
 		setupMap(new MapData('Rivulet', "img/Rivulet_icon_%28custom%29.png", defaultSize, new Vec(2180, 1200), withOneDefExt('img/World_Map_%28Rivulet%29')));
 		setupMap(new MapData('Spearmaster', "img/Spearmaster_icon_%28custom%29.png", defaultSize, new Vec(2180, 1200), withOneDefExt('img/World_Map_%28Spearmaster%29')));
 		setupMap(new MapData('Saint', "img/Saint_icon_%28custom%29.png", defaultSize, new Vec(2180, 2003), withOneDefExt('img/World_Map_%28Saint%29')));
-		setupMap(new MapData('Watcher', "img/Watcher_icon_%28custom%29.png", new Vec(10000, 15000), new Vec(0, 0), [
-			new Part(WM.Aether_Ridge, withDefExt('img/Watcher/Aether_Ridge_Map'), new Vec(0, 2000), [
+		setupMap(new MapData('Watcher', "img/Watcher_icon_%28custom%29.png", new Vec(15000, 15000), new Vec(0, 0), [
+			new Part(WM.Aether_Ridge, withDefExt('img/Watcher/Aether_Ridge_Map'), new Vec(0, 2000), new Vec(0, 0), [
 				new Con(WM.Sunbaked_Alley, new Vec(300, 480)),
 				new Con(WM.Torrid_Desert, new Vec(130, 730)),
 				new Con(WM.Daemon, new Vec(540, 600)),
@@ -374,16 +396,16 @@
 				new Con(WM.Coral_Caves, new Vec(600, 210)),
 				new Con(WM.Torrential_Railways, new Vec(1520, 140)),
 			]),
-			new Part(WM.Ancient_Urban, withDefExt('img/Watcher/Ancient_Urban_Map'), new Vec(4000, 6000), [
+			new Part(WM.Ancient_Urban, withDefExt('img/Watcher/Ancient_Urban_Map'), new Vec(4000, 6000), new Vec(0, 0), [
 				new Con(WM.Shattered_Terrace, new Vec(2450, 170)), // From
 			]),
-			new Part(WM.Badlands, withDefExt('img/Watcher/Badlands_Map'), new Vec(0, 3000), [
+			new Part(WM.Badlands, withDefExt('img/Watcher/Badlands_Map'), new Vec(0, 3000), new Vec(0, 0), [
 				new Con(WM.Fractured_Gateways, new Vec(120, 300)),
 				new Con(WM.Daemon, new Vec(1750, 260)),
 				new Con(WM.Migration_Path, new Vec(1620, 360)),
 				new Con(WM.Torrid_Desert, new Vec(1020, 90)), // From
 			]),
-			new Part(WM.Cold_Storage, withDefExt('img/Watcher/Cold_Storage_Map'), new Vec(0, 4000), [
+			new Part(WM.Cold_Storage, withDefExt('img/Watcher/Cold_Storage_Map'), new Vec(0, 4000), new Vec(0, 0), [
 				new Con(WM.Stormy_Coast, new Vec(280, 80)),
 				new Con(WM.Migration_Path, new Vec(790, 250)),
 				new Con(WM.Daemon, new Vec(830, 300)),
@@ -392,109 +414,109 @@
 				new Con(WM.Fractured_Gateways, new Vec(410, 730)), // From
 				new Con(WM.Unfortunate_Evolution, new Vec(450, 900)),
 			]),
-			new Part(WM.Coral_Caves, withDefExt('img/Watcher/Coral_Caves_Map'), new Vec(4000, 7000), [
+			new Part(WM.Coral_Caves, withDefExt('img/Watcher/Coral_Caves_Map'), new Vec(4000, 7000), new Vec(0, 0), [
 				new Con(WM.Pillar_Grove, new Vec(40, 30)),
 				new Con(WM.Blast_Deck, new Vec(420, 210)),
 				new Con(WM.Rusted_Wrecks, new Vec(710, 410)),
 				new Con(WM.Daemon, new Vec(760, 270)),
 			]),
-			new Part(WM.Corrupted_Factories, withDefExt('img/Watcher/Corrupted_Factories_Map'), new Vec(2000, 10000), []),
-			new Part(WM.Crumbling_Fringes, withDefExt('img/Watcher/Crumbling_Fringes_Map'), new Vec(2000, 9000), []),
-			new Part(WM.Daemon, withDefExt('img/Watcher/Daemon_Map'), new Vec(4000, 3000), [
+			new Part(WM.Corrupted_Factories, withDefExt('img/Watcher/Corrupted_Factories_Map'), new Vec(2000, 10000), new Vec(0, 0), []),
+			new Part(WM.Crumbling_Fringes, withDefExt('img/Watcher/Crumbling_Fringes_Map'), new Vec(2000, 9000), new Vec(0, 0), []),
+			new Part(WM.Daemon, withDefExt('img/Watcher/Daemon_Map'), new Vec(4000, 3000), new Vec(0, 0), [
 				new Con(WM.Shattered_Terrace, new Vec(200, 90)),
 				new Con(WM.Outer_Rim, new Vec(560, 180)),
 
 				...[WM.Aether_Ridge, WM.Badlands, WM.Cold_Storage, WM.Coral_Caves, WM.Desolate_Tract, WM.Fetid_Glen, WM.Fractured_Gateways, WM.Heat_Ducts, WM.Migration_Path, WM.Pillar_Grove, WM.Rusted_Wrecks, WM.Salination, WM.Shrouded_Stacks, WM.Signal_Spires, WM.Stormy_Coast, WM.Sunbaked_Alley, WM.The_Surface, WM.Torrential_Railways, WM.Torrid_Desert, WM.Turbulent_Pump, WM.Verdant_Waterways]
 					.map(m => new Con(m, new Vec(360, 50)))
 			]),
-			new Part(WM.Decaying_Tunnels, withDefExt('img/Watcher/Decaying_Tunnels_Map'), new Vec(4000, 0), []),
-			new Part(WM.Desolate_Tract, withDefExt('img/Watcher/Desolate_Tract_Map'), new Vec(0, 5000), [
+			new Part(WM.Decaying_Tunnels, withDefExt('img/Watcher/Decaying_Tunnels_Map'), new Vec(4000, 0), new Vec(0, 0), []),
+			new Part(WM.Desolate_Tract, withDefExt('img/Watcher/Desolate_Tract_Map'), new Vec(0, 5000), new Vec(0, 0), [
 				new Con(WM.Turbulent_Pump, new Vec(110, 470)),
 				new Con(WM.Rusted_Wrecks, new Vec(1060, 320)),
 				new Con(WM.Fallen_Tramway, new Vec(1890, 190)),
 				new Con(WM.Daemon, new Vec(1940, 80)),
 			]),
-			new Part(WM.Fetid_Glen, withDefExt('img/Watcher/Fetid_Glen_Map'), new Vec(0, 6000), [
+			new Part(WM.Fetid_Glen, withDefExt('img/Watcher/Fetid_Glen_Map'), new Vec(0, 6000), new Vec(0, 0), [
 				new Con(WM.Shattered_Terrace, new Vec(200, 80)),
 				new Con(WM.Fractured_Gateways, new Vec(1065, 470)),
 				new Con(WM.Verdant_Waterways, new Vec(1225, 220)),
 				new Con(WM.Daemon, new Vec(1160, 400)),
 				new Con(WM.Salination, new Vec(1780, 320)),
 			]),
-			new Part(WM.Fractured_Gateways, withDefExt('img/Watcher/Fractured_Gateways_Map'), new Vec(0, 7000), [
+			new Part(WM.Fractured_Gateways, withDefExt('img/Watcher/Fractured_Gateways_Map'), new Vec(0, 7000), new Vec(0, 0), [
 				new Con(WM.Station_Annex, new Vec(90, 100)),
 				new Con(WM.Daemon, new Vec(730, 180)),
 				new Con(WM.Badlands, new Vec(900, 350)), // From
 				new Con(WM.Fetid_Glen, new Vec(1570, 420)),
 			]),
-			new Part(WM.Heat_Ducts, withDefExt('img/Watcher/Heat_Ducts_Map'), new Vec(0, 8000), [
+			new Part(WM.Heat_Ducts, withDefExt('img/Watcher/Heat_Ducts_Map'), new Vec(0, 8000), new Vec(0, 0), [
 				new Con(WM.Daemon, new Vec(80, 270)),
 				new Con(WM.Torrid_Desert, new Vec(210, 430)),
 				new Con(WM.Salination, new Vec(400, 460)),
 				new Con(WM.Turbulent_Pump, new Vec(510, 120)), // From
 				new Con(WM.Stormy_Coast, new Vec(820, 280)),
 			]),
-			new Part(WM.Infested_Wastes, withDefExt('img/Watcher/Infested_Wastes_Map'), new Vec(4000, 1000), []),
-			new Part(WM.Migration_Path, withDefExt('img/Watcher/Migration_Path_Map'), new Vec(0, 9000), [
+			new Part(WM.Infested_Wastes, withDefExt('img/Watcher/Infested_Wastes_Map'), new Vec(4000, 1000), new Vec(0, 0), []),
+			new Part(WM.Migration_Path, withDefExt('img/Watcher/Migration_Path_Map'), new Vec(0, 9000), new Vec(0, 0), [
 				new Con(WM.Ridgeworks, new Vec(90, 80)),
 				new Con(WM.Badlands, new Vec(600, 500)),
 				new Con(WM.Daemon, new Vec(1700, 480)),
 				new Con(WM.Cold_Storage, new Vec(1970, 320)),
 			]),
-			new Part(WM.Outer_Rim, withDefExt('img/Watcher/Outer_Rim_Map'), new Vec(4000, 5000), [
+			new Part(WM.Outer_Rim, withDefExt('img/Watcher/Outer_Rim_Map'), new Vec(4000, 5000), new Vec(0, 0), [
 				new Con(WM.Daemon, new Vec(3030, 540)),
 				new Con(WM.Unfortunate_Evolution, new Vec(2080, 440)), // From
 			]),
-			new Part(WM.Pillar_Grove, withDefExt('img/Watcher/Pillar_Grove_Map'), new Vec(0, 10000), [
+			new Part(WM.Pillar_Grove, withDefExt('img/Watcher/Pillar_Grove_Map'), new Vec(0, 10000), new Vec(0, 0), [
 				new Con(WM.Shrouded_Stacks, new Vec(110, 450)),
 				new Con(WM.Torrential_Railways, new Vec(910, 190)),
 				new Con(WM.Daemon, new Vec(1190, 500)),
 				new Con(WM.Coral_Caves, new Vec(1500, 150)),
 			]),
-			new Part(WM.Rusted_Wrecks, withDefExt('img/Watcher/Rusted_Wrecks_Map'), new Vec(2000, 0), [
+			new Part(WM.Rusted_Wrecks, withDefExt('img/Watcher/Rusted_Wrecks_Map'), new Vec(2000, 0), new Vec(0, 0), [
 				new Con(WM.Desolate_Tract, new Vec(160, 290)),
 				new Con(WM.Daemon, new Vec(260, 150)),
 				new Con(WM.Sunbaked_Alley, new Vec(1270, 110)),
 				new Con(WM.Coral_Caves, new Vec(1830, 250)),
 			]),
-			new Part(WM.Salination, withDefExt('img/Watcher/Salination_Map'), new Vec(2000, 1000), [
+			new Part(WM.Salination, withDefExt('img/Watcher/Salination_Map'), new Vec(2000, 1000), new Vec(0, 0), [
 				new Con(WM.Fetid_Glen, new Vec(150, 110)),
 				new Con(WM.Heat_Ducts, new Vec(310, 110)),
 				new Con(WM.Shattered_Terrace, new Vec(540, 420)),
 				new Con(WM.Daemon, new Vec(550, 530)),
 			]),
-			new Part(WM.Shattered_Terrace, withDefExt('img/Watcher/Shattered_Terrace_Map'), new Vec(4000, 2000), [
+			new Part(WM.Shattered_Terrace, withDefExt('img/Watcher/Shattered_Terrace_Map'), new Vec(4000, 2000), new Vec(0, 0), [
 				new Con(WM.Fetid_Glen, new Vec(125, 380)), // From
 				new Con(WM.Signal_Spires, new Vec(250, 260)), // From
 				new Con(WM.Salination, new Vec(330, 380)), // From
 				new Con(WM.Ancient_Urban, new Vec(710, 190)),
 				new Con(WM.Daemon, new Vec(0, 0)), // TODO ????
 			]),
-			new Part(WM.Shrouded_Stacks, withDefExt('img/Watcher/Shrouded_Stacks_Map'), new Vec(2000, 2000), [
+			new Part(WM.Shrouded_Stacks, withDefExt('img/Watcher/Shrouded_Stacks_Map'), new Vec(2000, 2000), new Vec(0, 0), [
 				new Con(WM.Ridgeworks, new Vec(100, 460)),
 				new Con(WM.Daemon, new Vec(485, 385)),
 				new Con(WM.Tundra_Fault, new Vec(880, 170)),
 				new Con(WM.Cold_Storage, new Vec(900, 520)),
 				new Con(WM.Pillar_Grove, new Vec(1185, 80)),
 			]),
-			new Part(WM.Signal_Spires, withDefExt('img/Watcher/Signal_Spires_Map'), new Vec(2000, 3000), [
+			new Part(WM.Signal_Spires, withDefExt('img/Watcher/Signal_Spires_Map'), new Vec(2000, 3000), new Vec(0, 0), [
 				new Con(WM.Shattered_Terrace, new Vec(510, 50)),
 				new Con(WM.Daemon, new Vec(445, 745)),
 				new Con(WM.Stormy_Coast, new Vec(105, 905)), // From
 				new Con(WM.Verdant_Waterways, new Vec(705, 1000)),
 			]),
-			new Part(WM.Stormy_Coast, withDefExt('img/Watcher/Stormy_Coast_Map'), new Vec(2000, 4000), [
+			new Part(WM.Stormy_Coast, withDefExt('img/Watcher/Stormy_Coast_Map'), new Vec(2000, 4000), new Vec(0, 0), [
 				new Con(WM.Daemon, new Vec(90, 220)),
 				new Con(WM.Signal_Spires, new Vec(330, 80)),
 				new Con(WM.Cold_Storage, new Vec(750, 280)),
 				new Con(WM.Thermal_Relay, new Vec(1055, 180)), // From
 			]),
-			new Part(WM.Sunbaked_Alley, withDefExt('img/Watcher/Sunbaked_Alley_Map'), new Vec(0, 0), [
+			new Part(WM.Sunbaked_Alley, withDefExt('img/Watcher/Sunbaked_Alley_Map'), new Vec(0, 0), new Vec(0, 0), [
 				new Con(WM.Rusted_Wrecks, new Vec(190, 110)),
 				new Con(WM.Daemon, new Vec(510, 210)),
 				new Con(WM.Blast_Deck, new Vec(950, 250)),
 			]),
-			new Part(WM.The_Surface, withDefExt('img/Watcher/The_Surface_Map'), new Vec(2000, 5000), [
+			new Part(WM.The_Surface, withDefExt('img/Watcher/The_Surface_Map'), new Vec(2000, 5000), new Vec(0, 0), [
 				new Con(WM.Shrouded_Stacks, new Vec(190, 635)),
 				new Con(WM.Daemon, new Vec(290, 650)),
 				new Con(WM.Cold_Storage, new Vec(940, 430)),
@@ -502,30 +524,30 @@
 				new Con(WM.Torrid_Desert, new Vec(1220, 510)),
 				new Con(WM.Desolate_Tract, new Vec(1780, 80)),
 			]),
-			new Part(WM.Torrential_Railways, withDefExt('img/Watcher/Torrential_Railways_Map'), new Vec(0, 1000), [
+			new Part(WM.Torrential_Railways, withDefExt('img/Watcher/Torrential_Railways_Map'), new Vec(0, 1000), new Vec(0, 0), [
 				new Con(WM.Aerial_Tramway, new Vec(430, 60)),
 				new Con(WM.Daemon, new Vec(580, 90)),
 				new Con(WM.Pillar_Grove, new Vec(890, 140)),
 			]),
-			new Part(WM.Torrid_Desert, withDefExt('img/Watcher/Torrid_Desert_Map'), new Vec(2000, 6000), [
+			new Part(WM.Torrid_Desert, withDefExt('img/Watcher/Torrid_Desert_Map'), new Vec(2000, 6000), new Vec(0, 0), [
 				new Con(WM.Badlands, new Vec(105, 270)),
 				new Con(WM.Daemon, new Vec(420, 160)),
 				new Con(WM.Heat_Ducts, new Vec(560, 100)),
 				new Con(WM.Ridgeworks, new Vec(1040, 215)), // From
 				new Con(WM.The_Surface, new Vec(1500, 320)),
 			]),
-			new Part(WM.Turbulent_Pump, withDefExt('img/Watcher/Turbulent_Pump_Map'), new Vec(2000, 7000), [
+			new Part(WM.Turbulent_Pump, withDefExt('img/Watcher/Turbulent_Pump_Map'), new Vec(2000, 7000), new Vec(0, 0), [
 				new Con(WM.Heat_Ducts, new Vec(125, 210)),
 				new Con(WM.Daemon, new Vec(320, 135)),
 				new Con(WM.Desolate_Tract, new Vec(635, 190)), // From
 				new Con(WM.Verdant_Waterways, new Vec(990, 385)),
 			]),
 
-			new Part(WM.Unfortunate_Evolution, withDefExt('img/Watcher/Unfortunate_Evolution_Map'), new Vec(4000, 4000), [
+			new Part(WM.Unfortunate_Evolution, withDefExt('img/Watcher/Unfortunate_Evolution_Map'), new Vec(4000, 4000), new Vec(0, 0), [
 				new Con(WM.Outer_Rim, new Vec(180, 80)),
 				new Con(WM.Cold_Storage, new Vec(70, 1100)), // From
 			]),
-			new Part(WM.Verdant_Waterways, withDefExt('img/Watcher/Verdant_Waterways_Map'), new Vec(2000, 8000), [
+			new Part(WM.Verdant_Waterways, withDefExt('img/Watcher/Verdant_Waterways_Map'), new Vec(2000, 8000), new Vec(0, 0), [
 				new Con(WM.Fetid_Glen, new Vec(105, 80)),
 				new Con(WM.Signal_Spires, new Vec(175, 315)),
 				new Con(WM.Daemon, new Vec(525, 240)),
@@ -601,20 +623,39 @@
 		ctx.imageSmoothingEnabled = false;
 		var getRatio = (s) => new Vec(s.x / canv.width, s.y / canv.height);
 		let isDrawing;
+		let isDbgDrag;
+		let dragPart = null;
 
 		canv.onmousedown = (e) => {
-			if (!e.shiftKey) {
-				return;
+			if (e.shiftKey) {
+				isDrawing = true;
+				ctx.beginPath();
+				ctx.lineWidth = 1;
+				ctx.strokeStyle = "red";
+				ctx.lineJoin = "round";
+				ctx.lineCap = "round";
+				const ratio = getRatio(canvSize);
+				ctx.moveTo(e.offsetX / ratio.x, e.offsetY / ratio.y);
 			}
 
-			isDrawing = true;
-			ctx.beginPath();
-			ctx.lineWidth = 1;
-			ctx.strokeStyle = "red";
-			ctx.lineJoin = "round";
-			ctx.lineCap = "round";
-			const ratio = getRatio(canvSize);
-			ctx.moveTo(e.offsetX / ratio.x, e.offsetY / ratio.y);
+			if (e.ctrlKey) {
+				// Find part under mouse
+				const ratio = getRatio(canvSize);
+				const mousePos = new Vec(e.offsetX / ratio.x, e.offsetY / ratio.y);
+				let map = maps.get(selectedMap);
+				if (!map) {
+					return;
+				}
+
+				for (let part of map.parts) {
+					if (mousePos.x >= part.off.x && mousePos.x <= part.off.x + part.mapSize.x
+						&& mousePos.y >= part.off.y && mousePos.y <= part.off.y + part.mapSize.y) {
+						dragPart = part;
+						isDbgDrag = true;
+						break;
+					}
+				}
+			}
 		};
 
 		canv.oncontextmenu = (e) => { return false; }
@@ -624,6 +665,9 @@
 				const ratio = getRatio(canvSize);
 				ctx.lineTo(e.offsetX / ratio.x, e.offsetY / ratio.y);
 				ctx.stroke();
+			}
+			if (isDbgDrag) {
+
 			}
 		};
 
