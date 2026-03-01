@@ -17,12 +17,17 @@
 
 		html,
 		body,
-		.map {
+		.map,
+		.fillc {
 			position: absolute;
 			top: 0;
 			left: 0;
 			right: 0;
 			bottom: 0;
+		}
+
+		.part {
+			position: absolute;
 		}
 
 		.map,
@@ -47,13 +52,6 @@
 		#imgContainer {
 			background: darkgray;
 			position: fixed;
-
-			width: 12000px;
-			height: 7000px;
-		}
-
-		.dbgborder {
-			border: black 6px solid;
 		}
 
 		#uiCats {
@@ -92,46 +90,90 @@
 	</div>
 	<div id="uiHelp">
 		<span class="light-keys"><kbd>Shift</kbd>+<kbd>Mouse</kbd> to draw</span><br />
-		<span class="light-keys"><kbd>R</kbd> to erase</span><br />
+		<span class="light-keys"><kbd>R</kbd> to clear</span><br />
 	</div>
 
 	<div id="imgContainer" class="">
 		<canvas class="overlay" height="3500" width="6000" />
 	</div>
 
-	<script>
+	<script type="module">
+		//@ts-check
+
+		class Vec {
+			/** @param {number} x, @param {number} y */
+			constructor(x, y) {
+				this.x = x;
+				this.y = y;
+			}
+
+		}
+
+		class Part {
+			/** @param {string[]} srcs, @param {Vec} off, @param {Vec} size, @param {Con[]} [cons] */
+			constructor(key, srcs, off, size, cons) {
+				this.key = key;
+				this.srcs = srcs;
+				this.off = off;
+				this.size = size;
+				this.cons = cons || [];
+			}
+		}
+
+		class Con {
+			/** @param {string} to, @param {Vec} pos */
+			constructor(to, pos) {
+				this.to = to;
+				this.pos = pos;
+			}
+		}
+
+		class MapData {
+			/** @param {string} tag, @param icon_src, @param {Vec} mapSize, @param {Vec} off, @param {Part[]} parts */
+			constructor(tag, icon_src, mapSize, off, parts) {
+				this.tag = tag;
+				this.icon_src = icon_src;
+				this.mapSize = mapSize;
+				this.off = off;
+				this.parts = parts;
+			}
+		}
+
 		let selectedMap = null;
+		/** @type {HTMLDivElement} */
 		const pan = document.getElementById("imgContainer");
+		/** @type {HTMLDivElement} */
 		const mapSelections = document.getElementById("uiCats");
 		const initialTransform = { x: 0, y: 0, scale: 0.2 };
 		let pzInstance = panzoom(pan, {
 			initialZoom: initialTransform.scale,
 			beforeMouseDown: function (e) {
-				return e.shiftKey;
+				return e.shiftKey || e.ctrlKey;
 			}
 		});
 
+		/** @type {Map<string, MapData>} */
 		const maps = new Map();
-		function createMap(tag, map_src, offX, offY) {
-			return { tag, map_src, offX, offY };
-		}
-		function setupMap(tag, icon_src, map_src, offX, offY) {
-			const map = createMap(tag, map_src, offX, offY);
-			maps.set(tag, map);
+
+		/**
+		* @param {MapData} map
+		*/
+		function setupMap(map) {
+			maps.set(map.tag, map);
 			const btn = document.createElement("img");
-			btn.src = icon_src;
-			btn.onclick = () => setbg(tag);
-			btn.ontouchstart = () => setbg(tag);
+			btn.src = map.icon_src;
+			btn.onclick = () => setbg(map.tag);
+			btn.ontouchstart = () => setbg(map.tag);
 			mapSelections.appendChild(btn);
 		}
 
 		function getHash() {
-			const url = new URL(window.location);
-			return url.hash.substring(1);
+			return window.location.hash.substring(1);
 		}
 
+		/** @param {string} hash */
 		function setHash(hash) {
-			const url = new URL(window.location);
+			const url = new URL(window.location.toString());
 			url.hash = `#${hash}`;
 			window.history.pushState({}, '', url);
 		}
@@ -159,7 +201,11 @@
 			return true;
 		}
 
-		function setbg(tag, transform) {
+		const defaultSize = new Vec(12000, 7000);
+		let canvSize = defaultSize;
+
+		/** @param {string} tag, @param {{x: number, y: number, scale: number}} [transform] */
+		function setbg(tag, transform, forceRecreate = false) {
 			const data = maps.get(tag);
 			if (!data) {
 				return;
@@ -167,29 +213,51 @@
 
 			selectedMap = tag;
 
+			/** @type {HTMLDivElement[]} */
 			const imgs = [...pan.querySelectorAll(".map")];
 			imgs.forEach(i => i.style.display = "none");
-			let pic = imgs.find(i => i.dataset.map_name === data.tag);
+			let pic = imgs.find(i => i.dataset.mapName === data.tag);
+			if (forceRecreate && pic) {
+				pic.remove();
+				pic = undefined;
+			}
+			// Create container for slugcat map if it does not exist
 			if (!pic) {
-				pic = document.createElement("picture");
+				pic = document.createElement("div");
 				pic.classList.add("map");
-				for (let src of data.map_src) {
-					let source = document.createElement("source");
-					source.srcset = src;
-					let ext = src.substring(src.lastIndexOf('.') + 1);
-					source.type = `image/${ext}`;
-					pic.appendChild(source);
-				}
-				let source = document.createElement("img");
-				source.src = data.map_src[0];
-				pic.appendChild(source);
+				// Create a group for all map parts, most maps are precombined
+				// with only one map though.
+				for (let part of data.parts) {
+					let picture = document.createElement("picture");
+					//picture.style.border = "4px solid green";
+					picture.classList.add("part");
+					pic.appendChild(picture);
+					let offX = data.off.x + part.off.x;
+					let offY = data.off.y + part.off.y;
+					picture.style.left = `${offX}px`;
+					picture.style.top = `${offY}px`;
 
-				pic.style.left = `${data.offX}px`;
-				pic.style.top = `${data.offY}px`;
-				pic.dataset.map_name = data.tag;
+					// Append all image variations like webp, png, etc.
+					for (let src of part.srcs) {
+						let source = document.createElement("source");
+						source.srcset = src;
+						let ext = src.substring(src.lastIndexOf('.') + 1);
+						source.type = `image/${ext}`;
+						picture.appendChild(source);
+					}
+
+					let source = document.createElement("img");
+					source.src = part.srcs[0];
+					picture.appendChild(source);
+				}
+
+				pic.dataset.mapName = data.tag;
 				pan.appendChild(pic);
 			}
 			pic.style.display = "block";
+			canvSize = data.mapSize;
+			pan.style.width = `${canvSize.x}px`;
+			pan.style.height = `${canvSize.y}px`;
 
 			if (transform) {
 				const t = pzInstance.getTransform();
@@ -208,24 +276,25 @@
 				timer = setTimeout(() => { func.apply(this, args); }, timeout);
 			};
 		}
-		updateHashDebounced = debounce(updateHash, 500);
+		let updateHashDebounced = debounce(updateHash, 500);
 
+		/** @param {string} base, @param {string[]} exts, @returns {string[]} */
 		let withExt = (base, exts) => exts.map(e => `${base}.${e}`);
+		/** @param {string} base */
 		let withDefExt = (base) => withExt(base, ['webp', 'png']);
+		let withOneDefExt = (base) => [new Part("Map", withDefExt(base), new Vec(0, 0), defaultSize)];
 
-		setupMap('Vanilla', "img/Survivor_icon_%28custom%29.png", withDefExt('img/World_Map_%28Vanilla%29'), 2453, 736);
-		setupMap('Downpour', "img/Gourmand_icon_%28custom%29.png", withDefExt('img/World_Map_%28Downpour%29'), 0, 1200);
-		setupMap('Artificer', "img/Artificer_icon_%28custom%29.png", withDefExt('img/World_Map_%28Artificer%29'), 2180, 0);
-		setupMap('Rivulet', "img/Rivulet_icon_%28custom%29.png", withDefExt('img/World_Map_%28Rivulet%29'), 2180, 1200);
-		setupMap('Spearmaster', "img/Spearmaster_icon_%28custom%29.png", withDefExt('img/World_Map_%28Spearmaster%29'), 2180, 1200);
-		setupMap('Saint', "img/Saint_icon_%28custom%29.png", withDefExt('img/World_Map_%28Saint%29'), 2180, 2003);
+		setupMap(new MapData('Vanilla', "img/Survivor_icon.png", defaultSize, new Vec(2453, 736), withOneDefExt('img/World_Map_Vanilla')));
+		setupMap(new MapData('Downpour', "img/Gourmand_icon.png", defaultSize, new Vec(0, 1200), withOneDefExt('img/World_Map_Downpour')));
+		setupMap(new MapData('Artificer', "img/Artificer_icon.png", defaultSize, new Vec(2180, 0), withOneDefExt('img/World_Map_Artificer')));
+		setupMap(new MapData('Rivulet', "img/Rivulet_icon.png", defaultSize, new Vec(2180, 1200), withOneDefExt('img/World_Map_Rivulet')));
+		setupMap(new MapData('Spearmaster', "img/Spearmaster_icon.png", defaultSize, new Vec(2180, 1200), withOneDefExt('img/World_Map_Spearmaster')));
+		setupMap(new MapData('Saint', "img/Saint_icon.png", defaultSize, new Vec(2180, 2003), withOneDefExt('img/World_Map_Saint')));
+		setupMap(new MapData('Watcher', "img/Watcher_icon.png", defaultSize, new Vec(2000, 1000), withOneDefExt('img/World_Map_Watcher')));
 
 		if (!tryRestoreHash()) {
 			setbg("Vanilla", initialTransform);
 		}
-
-		const canvW = 12000;
-		const canvH = 7000;
 
 		pzInstance.on('transform', function (e) {
 			updateHashDebounced();
@@ -235,54 +304,58 @@
 
 			if (t.x > window.innerWidth - off) {
 				pzInstance.moveTo(window.innerWidth - off, t.y);
-			} else if (t.x < off - (canvW) * t.scale) {
-				pzInstance.moveTo(off - (canvW) * t.scale, t.y);
+			} else if (t.x < off - (canvSize.x) * t.scale) {
+				pzInstance.moveTo(off - (canvSize.x) * t.scale, t.y);
 			}
 			if (t.y > window.innerHeight - off) {
 				pzInstance.moveTo(t.x, window.innerHeight - off);
-			} else if (t.y < off - (canvH) * t.scale) {
-				pzInstance.moveTo(t.x, off - (canvH) * t.scale);
+			} else if (t.y < off - (canvSize.y) * t.scale) {
+				pzInstance.moveTo(t.x, off - (canvSize.y) * t.scale);
 			}
 		});
 
 		// Image stuff
 
+		/** @type {HTMLCanvasElement} */
 		const canv = document.querySelector(".overlay");
 
-		canv.style.width = `${canvW}px`;
-		canv.style.height = `${canvH}px`;
+		// canv.style.width = `${canvW}px`;
+		// canv.style.height = `${canvH}px`;
 
+		/** @type {CanvasRenderingContext2D} */
 		const ctx = canv.getContext("2d");
 		ctx.imageSmoothingEnabled = false;
-		const ratioX = canvW / canv.width, ratioY = canvH / canv.height;
+		var getRatio = (s) => new Vec(s.x / canv.width, s.y / canv.height);
 		let isDrawing;
 
 		canv.onmousedown = (e) => {
-			if (!e.shiftKey) {
-				return;
+			if (e.shiftKey) {
+				isDrawing = true;
+				ctx.beginPath();
+				ctx.lineWidth = 1;
+				ctx.strokeStyle = "red";
+				ctx.lineJoin = "round";
+				ctx.lineCap = "round";
+				const ratio = getRatio(canvSize);
+				ctx.moveTo(e.offsetX / ratio.x, e.offsetY / ratio.y);
 			}
-
-			isDrawing = true;
-			ctx.beginPath();
-			ctx.lineWidth = 1;
-			ctx.strokeStyle = "red";
-			ctx.lineJoin = "round";
-			ctx.lineCap = "round";
-			ctx.moveTo(e.offsetX / ratioX, e.offsetY / ratioY);
 		};
 
 		canv.oncontextmenu = (e) => { return false; }
 
 		canv.onmousemove = (e) => {
 			if (isDrawing) {
-				ctx.lineTo(e.offsetX / ratioX, e.offsetY / ratioY);
+				const ratio = getRatio(canvSize);
+				ctx.lineTo(e.offsetX / ratio.x, e.offsetY / ratio.y);
 				ctx.stroke();
 			}
 		};
 
 		canv.onmouseup = function () {
-			isDrawing = false;
-			ctx.closePath();
+			if (isDrawing) {
+				isDrawing = false;
+				ctx.closePath();
+			}
 		};
 
 		document.onkeydown = (e) => {
