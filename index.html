@@ -59,10 +59,6 @@
 			position: fixed;
 		}
 
-		.dbgborder {
-			border: black 6px solid;
-		}
-
 		#uiCats {
 			position: absolute;
 			display: flex;
@@ -213,78 +209,36 @@
 					return this._nav2d;
 				}
 
-				let polygons = [];
-				/** @type {Array<{ start: boolean, y: number, part: Part }>} */
-				let lineList = [];
+				var contour = [
+					new poly2tri.Point(0, 0),
+					new poly2tri.Point(0, this.mapSize.y),
+					new poly2tri.Point(this.mapSize.x, this.mapSize.y),
+					new poly2tri.Point(this.mapSize.x, 0),
+				];
+				var swctx = new poly2tri.SweepContext(contour);
 				for (let part of this.parts) {
-					lineList.push({ start: true, y: part.off.y, part });
-					lineList.push({ start: false, y: part.off.y + part.size.y, part });
-				}
-				lineList.sort((a, b) => a.y - b.y);
-
-				let currentY = 0;
-				let activeParts = new Set();
-
-				for (let line of lineList) {
-					let currentX = 0;
-
-					let colList = [];
-					for (let part of activeParts) {
-						colList.push({ start: true, x: part.off.x });
-						colList.push({ start: false, x: part.off.x + part.size.x });
-					}
-					colList.sort((a, b) => a.x - b.x);
-					// Merge overlapping columns
-					for (let i = 0; i < colList.length - 1; i++) {
-						let col = colList[i];
-						let nextCol = colList[i + 1];
-						if (col.start && nextCol.start) {
-							colList.splice(i + 1, 1);
-							i--;
-						} else if (!col.start && !nextCol.start) {
-							colList.splice(i, 1);
-							i--;
-						}
-					}
-
-					for (let col of colList) {
-						if (col.start) {
-							polygons.push([
-								[currentX, currentY],
-								[col.x, currentY],
-								[col.x, line.y],
-								[currentX, line.y],
-							]);
-						} else {
-							currentX = col.x;
-						}
-					}
-
-					polygons.push([
-						[currentX, currentY],
-						[this.mapSize.x, currentY],
-						[this.mapSize.x, line.y],
-						[currentX, line.y],
+					swctx.addHole([
+						new poly2tri.Point(part.off.x, part.off.y),
+						new poly2tri.Point(part.off.x + part.size.x, part.off.y),
+						new poly2tri.Point(part.off.x + part.size.x, part.off.y + part.size.y),
+						new poly2tri.Point(part.off.x, part.off.y + part.size.y),
 					]);
-
-					if (line.start) {
-						activeParts.add(line.part);
-					} else {
-						activeParts.delete(line.part);
-					}
-
-					currentY = line.y;
 				}
 
-				polygons.push([
-					[0, currentY],
-					[this.mapSize.x, currentY],
-					[this.mapSize.x, this.mapSize.y],
-					[0, this.mapSize.y],
-				]);
+				swctx.triangulate();
+				var triangles = swctx.getTriangles();
+
+
+				let polygons = [];
+				for (let tri of triangles) {
+					polygons.push(tri.getPoints());
+				}
 
 				const heuristicFunc = () => (polygon, to) => 0;
-				const graph = new nav2d.NavMesh(polygons, { heuristicFunc });
+				const graph = new nav2d.NavMesh(polygons, {
+					triangulate: false,
+					//heuristicFunc,
+				});
 				this._nav2d = graph;
 				return graph;
 			}
@@ -391,7 +345,7 @@
 				// with only one map though.
 				for (let part of data.parts) {
 					let picture = document.createElement("picture");
-					picture.style.border = "4px solid green";
+					//picture.style.border = "4px solid green";
 					picture.classList.add("part");
 					pic.appendChild(picture);
 					let offX = data.off.x + part.off.x;
@@ -447,14 +401,14 @@
 						svg.appendChild(line);
 					}
 
-					for (let rect of data.getNavMesh().polygons) {
-						let poly = document.createElementNS(svgNS, "polygon");
-						poly.setAttribute("fill", "rgba(0, 255, 0, 0.2)");
-						let points = rect.points.map(pos => `${pos.x},${pos.y}`).join(" ");
-						poly.setAttribute("points", points);
-						poly.setAttribute("stroke", "green");
-						svg.appendChild(poly);
-					}
+					// for (let rect of data.getNavMesh().polygons) {
+					// 	let poly = document.createElementNS(svgNS, "polygon");
+					// 	poly.setAttribute("fill", "rgba(0, 255, 0, 0.2)");
+					// 	let points = rect.points.map(pos => `${pos.x},${pos.y}`).join(" ");
+					// 	poly.setAttribute("points", points);
+					// 	poly.setAttribute("stroke", "green");
+					// 	svg.appendChild(poly);
+					// }
 				}
 
 				// print dot file for graphviz
