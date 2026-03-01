@@ -107,20 +107,6 @@
 				this.y = y;
 			}
 
-			/** @param {Vec} other */
-			add(other) {
-				return new Vec(this.x + other.x, this.y + other.y);
-			}
-
-			/** @param {Vec} other */
-			sub(other) {
-				return new Vec(this.x - other.x, this.y - other.y);
-			}
-
-			/** @returns {[number, number]} */
-			toArray() {
-				return [this.x, this.y];
-			}
 		}
 
 		class Part {
